@@ -61,11 +61,18 @@ class UserProfileRequest(BaseModel):
     bio: Optional[str] = None
 
 class HistoryRequest(BaseModel):
-    code: str
     language: str
-    output: Optional[str] = None
-    errors: Optional[List[str]] = None
-    had_errors: bool = False
+    original_code: str
+    fixed_code: Optional[str] = None
+    error_message: Optional[str] = None
+
+# Check if a user exists by email
+@app.get("/api/users")
+async def check_user_exists(email: str):
+    user = await db.get_user_by_email(email)
+    if user:
+        return {"exists": True, "user_id": user["_id"]}
+    return {"exists": False}
 
 # User authentication and profile endpoints
 @app.post("/api/users")
@@ -102,8 +109,12 @@ async def save_history(user_id: str, history_data: HistoryRequest):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    history_id = await db.save_code_history(user_id, history_data.dict())
-    return {"id": history_id}
+    # Add timestamp to history data
+    history_data_dict = history_data.dict()
+    history_data_dict["timestamp"] = datetime.utcnow()
+    
+    history_id = await db.save_code_history(user_id, history_data_dict)
+    return {"id": history_id, "timestamp": datetime.utcnow().isoformat()}
 
 @app.get("/api/users/{user_id}/history")
 async def get_history(user_id: str, limit: int = 20):
