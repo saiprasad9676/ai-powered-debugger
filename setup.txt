@@ -1,0 +1,35 @@
+JavaScript (with React) , Tailwind CSS for styling, and various components to achieve the desired functionality and design. Below is a comprehensive breakdown of the languages, components, and libraries you will need.
+
+1. Languages and Frameworks
+a. JavaScript
+Framework : React
+Reason : React is a popular JavaScript library for building user interfaces. It provides a component-based architecture, making it easy to manage and scale the frontend.
+b. CSS
+Framework : Tailwind CSS
+Reason : Tailwind CSS is a utility-first CSS framework that allows you to build custom designs quickly and efficiently using pre-defined utility classes.
+2. Components and Libraries
+a. React Components
+App.js : Main component that holds the overall structure and state.
+CodeEditor.js : Component for the code editor with syntax highlighting and real-time updates.
+ErrorPanel.js : Component to display errors, suggestions, and output.
+Sidebar.js : Component for the sidebar (if needed for navigation or additional features).
+b. Third-Party Libraries
+react-codemirror2 : For the code editor with syntax highlighting.
+Installation :
+bash
+npm install react-codemirror2 codemirror
+
+diff : For comparing code changes and highlighting differences.
+Installation :
+bash
+npm install diff
+
+tailwindcss : For styling the application.
+Installation :
+bash
+npm install -D tailwindcss postcss autoprefixer
+
+axios : For making HTTP requests to the backend (optional, but recommended for cleaner code).
+Installation :
+bash
+npm install axios
