@@ -7,10 +7,12 @@ const LoginPage = () => {
   const { currentUser, googleSignIn } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // If user is already logged in, redirect to profile setup or dashboard
     if (currentUser) {
+      console.log("User already logged in, redirecting...");
       if (!currentUser.displayName) {
         navigate('/profile-setup');
       } else {
@@ -22,11 +24,15 @@ const LoginPage = () => {
   const handleGoogleSignIn = async () => {
     try {
       setError('');
+      setLoading(true);
+      console.log("Handling Google sign-in click...");
       await googleSignIn();
       // Navigation happens in the useEffect above
     } catch (error) {
       console.error('Failed to sign in with Google', error);
-      setError('Failed to sign in with Google. Please try again.');
+      setError(`Failed to sign in with Google: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -69,13 +75,20 @@ const LoginPage = () => {
           className="google-signin-button" 
           onClick={handleGoogleSignIn}
           type="button"
+          disabled={loading}
         >
-          <img 
-            src="https://developers.google.com/identity/images/g-logo.png" 
-            alt="Google" 
-            className="google-icon" 
-          />
-          Sign in with Google
+          {loading ? (
+            "Signing in..."
+          ) : (
+            <>
+              <img 
+                src="https://developers.google.com/identity/images/g-logo.png" 
+                alt="Google" 
+                className="google-icon" 
+              />
+              Sign in with Google
+            </>
+          )}
         </button>
       </div>
     </div>
