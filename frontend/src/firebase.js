@@ -1,6 +1,12 @@
-// Import the functions you need from the SDKs you need
+// Import the functions you need from the Firebase SDKs
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInWithRedirect, 
+  signOut 
+} from "firebase/auth";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -14,37 +20,12 @@ const firebaseConfig = {
   measurementId: "G-ABC123DEF"
 };
 
-// Initialize Firebase with error handling
-let app;
-let auth;
+// Initialize Firebase
+console.log("Initializing Firebase...");
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-try {
-  console.log("Initializing Firebase with config:", { ...firebaseConfig, apiKey: "HIDDEN" });
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  console.log("Firebase initialized successfully");
-} catch (error) {
-  console.error("Error initializing Firebase:", error);
-  // Fallback initialization with minimal config
-  try {
-    const minimalConfig = {
-      apiKey: firebaseConfig.apiKey,
-      authDomain: firebaseConfig.authDomain,
-      projectId: firebaseConfig.projectId
-    };
-    console.log("Trying minimal Firebase config:", { ...minimalConfig, apiKey: "HIDDEN" });
-    app = initializeApp(minimalConfig);
-    auth = getAuth(app);
-    console.log("Firebase initialized with minimal config");
-  } catch (fallbackError) {
-    console.error("Fatal: Could not initialize Firebase even with minimal config:", fallbackError);
-    // Set empty instances to prevent crashes
-    app = null;
-    auth = null;
-  }
-}
-
-// Create Google provider with specific settings
+// Configure Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('profile');
 googleProvider.addScope('email');
@@ -53,16 +34,14 @@ googleProvider.setCustomParameters({
   client_id: '432873761264-8camv1a97cpeiq1gglih2j2klq2p97m1.apps.googleusercontent.com' // Your OAuth client ID
 });
 
-// Sign in with Google function with better error handling
+// Sign in with Google function
 const signInWithGoogle = async () => {
   try {
-    // Log to debug the sign-in process
     console.log("Attempting Google sign-in...");
     auth.useDeviceLanguage();
     
-    // Try with redirect instead of popup if popup fails repeatedly
     const result = await signInWithPopup(auth, googleProvider);
-    console.log("Sign-in successful:", result.user);
+    console.log("Sign-in successful");
     return result.user;
   } catch (error) {
     console.error("Error signing in with Google:", error);
@@ -92,4 +71,11 @@ const logOut = async () => {
   }
 };
 
-export { auth, signInWithGoogle, logOut, signInWithRedirect, GoogleAuthProvider }; 
+// Export only what's needed
+export { 
+  auth, 
+  signInWithGoogle, 
+  logOut, 
+  signInWithRedirect, 
+  GoogleAuthProvider
+}; 
