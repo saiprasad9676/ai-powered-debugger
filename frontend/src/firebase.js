@@ -17,8 +17,6 @@ const firebaseConfig = {
 // Initialize Firebase with error handling
 let app;
 let auth;
-// Create a placeholder db object to avoid import errors
-const db = {};
 
 try {
   console.log("Initializing Firebase with config:", { ...firebaseConfig, apiKey: "HIDDEN" });
@@ -94,4 +92,4 @@ const logOut = async () => {
   }
 };
 
-export { auth, db, signInWithGoogle, logOut, signInWithRedirect, GoogleAuthProvider }; 
+export { auth, signInWithGoogle, logOut, signInWithRedirect, GoogleAuthProvider }; 
