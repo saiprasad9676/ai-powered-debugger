@@ -6,12 +6,12 @@ import { getFirestore } from "firebase/firestore";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDUCz1OZl2GMgDXcXDGK-2E8RiIljnS1_0",
-  authDomain: "code-debugger-app.firebaseapp.com",
-  projectId: "code-debugger-app",
-  storageBucket: "code-debugger-app.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abc123def456ghi789jkl",
+  apiKey: "AIzaSyAas7BLrcdxCk7FS5LV7fGEI-5352vh9k0",
+  authDomain: "ai-powered-debugger.firebaseapp.com",
+  projectId: "ai-powered-debugger",
+  storageBucket: "ai-powered-debugger.appspot.com",
+  messagingSenderId: "432873761264",
+  appId: "1:432873761264:web:YOUR_APP_ID", // You'll need to replace this with your actual app ID
   measurementId: "G-ABC123DEF"
 };
 
@@ -20,6 +20,11 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
+
+// Configure Google sign-in
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
 
 // Sign in with Google
 const signInWithGoogle = async () => {
