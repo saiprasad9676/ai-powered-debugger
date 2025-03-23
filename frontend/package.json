@@ -8,7 +8,7 @@
     "@testing-library/user-event": "^13.5.0",
     "codemirror": "^5.65.3",
     "diff": "^5.1.0",
-    "firebase": "^11.5.0",
+    "firebase": "^10.8.0",
     "react": "^18.2.0",
     "react-codemirror2": "^7.2.1",
     "react-dom": "^18.2.0",
