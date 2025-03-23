@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
+import { auth } from '../firebase';
 import '../styles.css';
 
 const LoginPage = () => {
@@ -8,6 +10,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [popupFailed, setPopupFailed] = useState(false);
 
   useEffect(() => {
     // If user is already logged in, redirect to profile setup or dashboard
@@ -26,11 +29,32 @@ const LoginPage = () => {
       setError('');
       setLoading(true);
       console.log("Handling Google sign-in click...");
+      
+      if (popupFailed) {
+        // If popup failed before, use redirect method
+        console.log("Using redirect method for sign-in...");
+        const provider = new GoogleAuthProvider();
+        provider.addScope('profile');
+        provider.addScope('email');
+        provider.setCustomParameters({
+          prompt: 'select_account',
+          client_id: '432873761264-8camv1a97cpeiq1gglih2j2klq2p97m1.apps.googleusercontent.com'
+        });
+        await signInWithRedirect(auth, provider);
+        return; // This will redirect, so no need to continue
+      }
+      
+      // Try popup method first
       await googleSignIn();
       // Navigation happens in the useEffect above
     } catch (error) {
       console.error('Failed to sign in with Google', error);
-      setError(`Failed to sign in with Google: ${error.message || 'Unknown error'}`);
+      setError(`Failed to sign in: ${error.message || 'Unknown error'}`);
+      
+      // If popup was blocked or other error, suggest using redirect next time
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+        setPopupFailed(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -79,6 +103,8 @@ const LoginPage = () => {
         >
           {loading ? (
             "Signing in..."
+          ) : popupFailed ? (
+            "Sign in with Google (Redirect)"
           ) : (
             <>
               <img 
@@ -90,6 +116,10 @@ const LoginPage = () => {
             </>
           )}
         </button>
+        
+        {popupFailed && (
+          <p className="helper-text">Pop-up was blocked. Click again to use redirect method.</p>
+        )}
       </div>
     </div>
   );

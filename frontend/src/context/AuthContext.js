@@ -4,7 +4,10 @@ import {
   signInWithGoogle, 
   logOut 
 } from "../firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { 
+  onAuthStateChanged, 
+  getRedirectResult 
+} from "firebase/auth";
 import { 
   doc, 
   setDoc, 
@@ -22,11 +25,28 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Handle redirect result
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          console.log("Redirect sign-in successful:", result.user);
+        }
+      } catch (error) {
+        console.error("Error with redirect sign-in:", error);
+      }
+    };
+
+    handleRedirectResult();
+  }, []);
+
   // Listen for authentication state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
+        console.log("Auth state changed - user is logged in:", user.uid);
         // Get user profile from Firestore
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
@@ -37,6 +57,7 @@ export const AuthProvider = ({ children }) => {
           setUserProfile(null);
         }
       } else {
+        console.log("Auth state changed - no user is logged in");
         setUserProfile(null);
       }
       setLoading(false);
@@ -52,7 +73,7 @@ export const AuthProvider = ({ children }) => {
       return user;
     } catch (error) {
       console.error("Error signing in with Google:", error);
-      return null;
+      throw error;
     }
   };
 
