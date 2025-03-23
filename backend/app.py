@@ -430,28 +430,49 @@ async def verify_token(token: Optional[str] = Header(None)):
 
 # Debug code using Gemini API
 async def debug_with_ai(code, language, errors=None, output=None):
-    prompt = f"""
-    As an AI code assistant, analyze this {language} code and help debug it:
+    # Build the prompt without nested f-strings
+    prompt_parts = [
+        f"As an AI code assistant, analyze this {language} code and help debug it:",
+        f"```{language}",
+        code,
+        "```"
+    ]
     
-    ```{language}
-    {code}
-    ```
+    # Add errors section if available
+    if errors:
+        prompt_parts.extend([
+            "Errors encountered:",
+            "```",
+            errors,
+            "```"
+        ])
     
-    {f'Errors encountered:\n```\n{errors}\n```' if errors else ''}
-    {f'Output produced:\n```\n{output}\n```' if output else ''}
+    # Add output section if available
+    if output:
+        prompt_parts.extend([
+            "Output produced:",
+            "```",
+            output,
+            "```"
+        ])
     
-    Provide the following:
-    1. Detailed explanation of any issues
-    2. A list of specific suggestions to fix the code
-    3. A fully corrected version of the code
+    # Add the rest of the instructions
+    prompt_parts.extend([
+        "Provide the following:",
+        "1. Detailed explanation of any issues",
+        "2. A list of specific suggestions to fix the code",
+        "3. A fully corrected version of the code",
+        "",
+        "Format your response as a JSON object with these keys:",
+        "- \"explanation\": String with your detailed explanation",
+        "- \"suggestions\": Array of strings with each suggestion",
+        "- \"fixed_code\": String with the corrected code",
+        "",
+        "Ensure your JSON is properly formatted and can be parsed by Python's json.loads()."
+    ])
     
-    Format your response as a JSON object with these keys:
-    - "explanation": String with your detailed explanation
-    - "suggestions": Array of strings with each suggestion
-    - "fixed_code": String with the corrected code
-    
-    Ensure your JSON is properly formatted and can be parsed by Python's json.loads().
-    """
+    # Join all parts with double newlines
+    prompt = "\n\n".join(prompt_parts)
     
     try:
         response = model.generate_content(prompt)
