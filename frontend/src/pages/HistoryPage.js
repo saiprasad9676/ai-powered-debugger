@@ -2,12 +2,52 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+// Define API URL
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 const HistoryPage = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Fetch history from MongoDB
+  const fetchHistory = async () => {
+    if (!currentUser) return;
+    
+    try {
+      setLoading(true);
+      
+      const response = await fetch(`${API_URL}/api/users/${currentUser.uid}/history`);
+      
+      if (response.ok) {
+        const historyData = await response.json();
+        
+        // Format timestamps for display
+        const formattedHistory = historyData.map(item => ({
+          ...item,
+          timestamp: new Date(item.timestamp).toLocaleString(),
+          // Map backend field names to frontend expected names if necessary
+          id: item._id || item.id,
+          originalCode: item.original_code,
+          fixedCode: item.fixed_code,
+          errorMessage: item.error_message,
+          language: item.language
+        }));
+        
+        setHistory(formattedHistory);
+        setError('');
+      } else {
+        throw new Error('Failed to fetch history');
+      }
+    } catch (err) {
+      console.error('Error fetching history:', err);
+      setError('Failed to load history. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // If user is not logged in, redirect to login
@@ -16,34 +56,8 @@ const HistoryPage = () => {
       return;
     }
 
-    try {
-      setLoading(true);
-      
-      // Load history from localStorage
-      const historyKey = `code_history_${currentUser.uid}`;
-      const storedHistory = localStorage.getItem(historyKey);
-      
-      if (storedHistory) {
-        const parsedHistory = JSON.parse(storedHistory);
-        
-        // Format the timestamps
-        const formattedHistory = parsedHistory.map(item => ({
-          ...item,
-          timestamp: new Date(item.timestamp).toLocaleString()
-        }));
-        
-        setHistory(formattedHistory);
-      } else {
-        setHistory([]);
-      }
-      
-      setError('');
-    } catch (err) {
-      console.error('Error loading history:', err);
-      setError('Failed to load history. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
+    // Fetch history from MongoDB
+    fetchHistory();
   }, [currentUser, navigate]);
 
   if (loading) {
