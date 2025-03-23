@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
@@ -11,14 +11,43 @@ const firebaseConfig = {
   projectId: "ai-code-debug",
   storageBucket: "ai-code-debug.appspot.com",
   messagingSenderId: "436819563814",
-  appId: "1:436819563814:web:your-app-id-here",  // Add your actual app ID from Firebase console
+  appId: "1:436819563814:web:436819563814",  // Using messageSenderId as a fallback if real app ID unavailable
   measurementId: "G-ABC123DEF"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Initialize Firebase with error handling
+let app;
+let auth;
+let db;
+
+try {
+  console.log("Initializing Firebase with config:", { ...firebaseConfig, apiKey: "HIDDEN" });
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  console.log("Firebase initialized successfully");
+} catch (error) {
+  console.error("Error initializing Firebase:", error);
+  // Fallback initialization with minimal config
+  try {
+    const minimalConfig = {
+      apiKey: firebaseConfig.apiKey,
+      authDomain: firebaseConfig.authDomain,
+      projectId: firebaseConfig.projectId
+    };
+    console.log("Trying minimal Firebase config:", { ...minimalConfig, apiKey: "HIDDEN" });
+    app = initializeApp(minimalConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    console.log("Firebase initialized with minimal config");
+  } catch (fallbackError) {
+    console.error("Fatal: Could not initialize Firebase even with minimal config:", fallbackError);
+    // Set empty instances to prevent crashes
+    app = null;
+    auth = null;
+    db = null;
+  }
+}
 
 // Create Google provider with specific settings
 const googleProvider = new GoogleAuthProvider();
@@ -68,4 +97,4 @@ const logOut = async () => {
   }
 };
 
-export { auth, db, signInWithGoogle, logOut }; 
+export { auth, db, signInWithGoogle, logOut, signInWithRedirect, GoogleAuthProvider }; 

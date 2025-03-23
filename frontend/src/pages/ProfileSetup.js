@@ -53,24 +53,36 @@ const ProfileSetup = () => {
     setLoading(true);
     setError('');
     
+    console.log("Submit started - Form data:", formData);
+    
     // Simple validation
     if (!formData.username || !formData.firstName || !formData.lastName || !formData.dob) {
+      console.log("Validation failed - missing fields");
       setError('All fields are required');
       setLoading(false);
       return;
     }
     
     try {
+      console.log("Calling updateUserProfile...");
       const success = await updateUserProfile(formData);
+      console.log("Profile update result:", success);
+      
       if (success) {
-        navigate('/app');
+        console.log("Profile update successful, navigating to /app");
+        setLoading(false); // Make sure to set loading to false before navigation
+        // Small delay to ensure state updates before navigation
+        setTimeout(() => {
+          navigate('/app');
+        }, 100);
       } else {
+        console.error("Profile update returned false");
         setError('Failed to update profile');
+        setLoading(false);
       }
     } catch (err) {
+      console.error("Exception during profile update:", err);
       setError('An error occurred. Please try again.');
-      console.error(err);
-    } finally {
       setLoading(false);
     }
   };

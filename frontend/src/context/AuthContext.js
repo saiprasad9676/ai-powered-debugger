@@ -90,24 +90,36 @@ export const AuthProvider = ({ children }) => {
 
   // Create or update user profile
   const updateUserProfile = async (profileData) => {
-    if (!currentUser) return false;
+    if (!currentUser) {
+      console.error("Cannot update profile: No user is logged in");
+      return false;
+    }
 
     try {
+      console.log("Updating profile for user:", currentUser.uid);
+      console.log("Profile data:", profileData);
+      
       const userRef = doc(db, "users", currentUser.uid);
+      console.log("About to write to Firestore at path:", `users/${currentUser.uid}`);
+      
       await setDoc(userRef, {
         ...profileData,
         email: currentUser.email,
         lastUpdated: serverTimestamp(),
       }, { merge: true });
+      
+      console.log("Firestore write successful");
 
       setUserProfile({
         ...profileData,
         email: currentUser.email,
       });
-
+      
+      console.log("Profile updated successfully in state");
       return true;
     } catch (error) {
       console.error("Error updating profile:", error);
+      console.error("Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
       return false;
     }
   };
