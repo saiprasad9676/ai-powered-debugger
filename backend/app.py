@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Header, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, EmailStr
+from typing import Optional, List, Dict, Any
 from ai_integration import get_ai_suggestions, apply_quick_fix
 from subprocess import run, PIPE, STDOUT, CalledProcessError
 import os
@@ -13,6 +13,8 @@ import json
 import base64
 import time
 import google.generativeai as genai
+from datetime import datetime
+import database as db
 
 app = FastAPI()
 
@@ -42,9 +44,75 @@ class CodeRequest(BaseModel):
 
 class CodeResponse(BaseModel):
     output: str
-    errors: str
+    errors: List[str]
     ai_suggestions: List[str]
     fixed_code: Optional[str] = None
+
+class UserCreateRequest(BaseModel):
+    email: EmailStr
+    display_name: str
+    photo_url: Optional[str] = None
+    
+class UserProfileRequest(BaseModel):
+    username: str
+    firstName: str
+    lastName: str
+    dob: str
+    bio: Optional[str] = None
+
+class HistoryRequest(BaseModel):
+    code: str
+    language: str
+    output: Optional[str] = None
+    errors: Optional[List[str]] = None
+    had_errors: bool = False
+
+# User authentication and profile endpoints
+@app.post("/api/users")
+async def create_user(user_data: UserCreateRequest):
+    # Check if user already exists
+    existing_user = await db.get_user_by_email(user_data.email)
+    if existing_user:
+        return existing_user
+    
+    # Create new user
+    new_user = await db.create_user(user_data.dict())
+    return new_user
+
+@app.get("/api/users/{user_id}")
+async def get_user(user_id: str):
+    user = await db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@app.put("/api/users/{user_id}/profile")
+async def update_profile(user_id: str, profile_data: UserProfileRequest):
+    user = await db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    updated_user = await db.update_user_profile(user_id, profile_data.dict())
+    return updated_user
+
+# Code history endpoints
+@app.post("/api/users/{user_id}/history")
+async def save_history(user_id: str, history_data: HistoryRequest):
+    user = await db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    history_id = await db.save_code_history(user_id, history_data.dict())
+    return {"id": history_id}
+
+@app.get("/api/users/{user_id}/history")
+async def get_history(user_id: str, limit: int = 20):
+    user = await db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    history = await db.get_user_history(user_id, limit)
+    return history
 
 def check_command_exists(command):
     """Check if a command exists in the system PATH."""

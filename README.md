@@ -153,3 +153,62 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## MongoDB Setup Instructions
+
+### Option 1: Local MongoDB Setup
+1. **Install MongoDB Community Edition**
+   - [Download and install MongoDB Community Server](https://www.mongodb.com/try/download/community)
+   - Follow the installation instructions for your operating system
+
+2. **Start MongoDB Service**
+   - Windows: MongoDB should run as a service automatically after installation
+   - macOS/Linux: Run `sudo systemctl start mongod` or `brew services start mongodb-community`
+
+3. **Verify MongoDB is running**
+   - Run `mongo` or `mongosh` in your terminal to connect to the MongoDB shell
+
+### Option 2: MongoDB Atlas (Cloud) Setup
+1. **Create a MongoDB Atlas Account**
+   - Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register)
+   - Sign up for a free account
+
+2. **Create a New Cluster**
+   - Click "Build a Cluster" and select the free tier option
+   - Choose your preferred cloud provider and region
+   - Click "Create Cluster" (creation takes a few minutes)
+
+3. **Set Up Database Access**
+   - In the left sidebar, go to "Database Access"
+   - Click "Add New Database User"
+   - Create a username and password (save these securely)
+   - Set privileges to "Read and Write to Any Database"
+   - Click "Add User"
+
+4. **Set Up Network Access**
+   - In the left sidebar, go to "Network Access"
+   - Click "Add IP Address"
+   - Choose "Allow Access from Anywhere" (for development)
+   - Click "Confirm"
+
+5. **Get Your Connection String**
+   - Once your cluster is created, click "Connect"
+   - Select "Connect your application"
+   - Copy the connection string (it looks like: `mongodb+srv://username:<password>@cluster0.xxxxx.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`)
+   - Replace `<password>` with your database user password
+
+### Configure Your Application
+
+1. **Create .env Files**
+   - Create `backend/.env` from `backend/.env.example`
+   - Create `frontend/.env` from `frontend/.env.example`
+
+2. **Update Backend .env File**
+   - Update `MONGO_URI` with your MongoDB connection string
+   - Set `DB_NAME` to your preferred database name (e.g., `ai_debugger_db`)
+
+3. **Start the Application**
+   - Start backend: `cd backend && python -m uvicorn app:app --reload`
+   - Start frontend: `cd frontend && npm run start`
+
+The application will automatically create the necessary collections in MongoDB when it first runs.
