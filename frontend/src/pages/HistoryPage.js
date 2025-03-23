@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
 import '../styles.css';
 
 const HistoryPage = () => {
@@ -19,22 +17,30 @@ const HistoryPage = () => {
       return;
     }
 
-    const fetchHistory = async () => {
+    const fetchHistory = () => {
       try {
-        const historyRef = collection(db, 'users', currentUser.uid, 'history');
-        const q = query(historyRef, orderBy('timestamp', 'desc'), limit(20));
-        const querySnapshot = await getDocs(q);
-        
-        const historyData = [];
-        querySnapshot.forEach((doc) => {
-          historyData.push({
-            id: doc.id,
-            ...doc.data(),
-            timestamp: doc.data().timestamp?.toDate() || new Date()
+        // Get history from localStorage
+        const storedHistory = localStorage.getItem('codeHistory');
+        if (storedHistory) {
+          const allHistory = JSON.parse(storedHistory);
+          const userHistory = allHistory[currentUser.uid] || [];
+          
+          // Sort by timestamp descending
+          const sortedHistory = userHistory.sort((a, b) => {
+            return new Date(b.timestamp) - new Date(a.timestamp);
           });
-        });
-        
-        setHistory(historyData);
+          
+          // Add IDs to each history item if they don't have one
+          const historyWithIds = sortedHistory.map((item, index) => ({
+            id: item.id || `history-${index}`,
+            ...item,
+            timestamp: new Date(item.timestamp)
+          }));
+          
+          setHistory(historyWithIds.slice(0, 20)); // Limit to 20 entries like before
+        } else {
+          setHistory([]);
+        }
       } catch (err) {
         console.error('Error fetching history:', err);
         setError('Failed to load your coding history');
