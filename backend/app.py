@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Header, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional, List
 from ai_integration import get_ai_suggestions, apply_quick_fix
 from subprocess import run, PIPE, STDOUT, CalledProcessError
 import os
