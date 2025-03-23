@@ -1,7 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -18,13 +17,11 @@ const firebaseConfig = {
 // Initialize Firebase with error handling
 let app;
 let auth;
-let db;
 
 try {
   console.log("Initializing Firebase with config:", { ...firebaseConfig, apiKey: "HIDDEN" });
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  db = getFirestore(app);
   console.log("Firebase initialized successfully");
 } catch (error) {
   console.error("Error initializing Firebase:", error);
@@ -38,14 +35,12 @@ try {
     console.log("Trying minimal Firebase config:", { ...minimalConfig, apiKey: "HIDDEN" });
     app = initializeApp(minimalConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
     console.log("Firebase initialized with minimal config");
   } catch (fallbackError) {
     console.error("Fatal: Could not initialize Firebase even with minimal config:", fallbackError);
     // Set empty instances to prevent crashes
     app = null;
     auth = null;
-    db = null;
   }
 }
 
@@ -97,4 +92,4 @@ const logOut = async () => {
   }
 };
 
-export { auth, db, signInWithGoogle, logOut, signInWithRedirect, GoogleAuthProvider }; 
+export { auth, signInWithGoogle, logOut, signInWithRedirect, GoogleAuthProvider }; 

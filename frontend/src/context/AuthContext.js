@@ -8,13 +8,6 @@ import {
   onAuthStateChanged, 
   getRedirectResult 
 } from "firebase/auth";
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  serverTimestamp 
-} from "firebase/firestore";
-import { db } from "../firebase";
 
 const AuthContext = createContext();
 
@@ -41,21 +34,29 @@ export const AuthProvider = ({ children }) => {
     handleRedirectResult();
   }, []);
 
+  // Load profile from localStorage when user logs in
+  const loadProfileFromStorage = (userId) => {
+    try {
+      const storedProfiles = localStorage.getItem('userProfiles');
+      if (storedProfiles) {
+        const profiles = JSON.parse(storedProfiles);
+        return profiles[userId] || null;
+      }
+    } catch (error) {
+      console.error("Error loading profile from localStorage:", error);
+    }
+    return null;
+  };
+
   // Listen for authentication state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
         console.log("Auth state changed - user is logged in:", user.uid);
-        // Get user profile from Firestore
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
-        
-        if (userSnap.exists()) {
-          setUserProfile(userSnap.data());
-        } else {
-          setUserProfile(null);
-        }
+        // Get user profile from localStorage
+        const profile = loadProfileFromStorage(user.uid);
+        setUserProfile(profile);
       } else {
         console.log("Auth state changed - no user is logged in");
         setUserProfile(null);
@@ -88,7 +89,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Create or update user profile
+  // Create or update user profile in localStorage
   const updateUserProfile = async (profileData) => {
     if (!currentUser) {
       console.error("Cannot update profile: No user is logged in");
@@ -96,20 +97,26 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      console.log("Updating profile for user:", currentUser.uid);
+      const userId = currentUser.uid;
+      console.log("Updating profile for user:", userId);
       console.log("Profile data:", profileData);
       
-      const userRef = doc(db, "users", currentUser.uid);
-      console.log("About to write to Firestore at path:", `users/${currentUser.uid}`);
+      // Get existing profiles or initialize empty object
+      const storedProfiles = localStorage.getItem('userProfiles');
+      const profiles = storedProfiles ? JSON.parse(storedProfiles) : {};
       
-      await setDoc(userRef, {
+      // Update profile for current user
+      profiles[userId] = {
         ...profileData,
         email: currentUser.email,
-        lastUpdated: serverTimestamp(),
-      }, { merge: true });
+        lastUpdated: new Date().toISOString(),
+      };
       
-      console.log("Firestore write successful");
-
+      // Save back to localStorage
+      localStorage.setItem('userProfiles', JSON.stringify(profiles));
+      console.log("Profile saved to localStorage");
+      
+      // Update state
       setUserProfile({
         ...profileData,
         email: currentUser.email,
@@ -124,16 +131,31 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Save coding history
+  // Save coding history to localStorage
   const saveCodeHistory = async (codeData) => {
     if (!currentUser) return false;
 
     try {
-      const historyRef = doc(db, "users", currentUser.uid, "history", new Date().toISOString());
-      await setDoc(historyRef, {
+      const userId = currentUser.uid;
+      const timestamp = new Date().toISOString();
+      
+      // Get existing history or initialize empty object
+      const storedHistory = localStorage.getItem('codeHistory');
+      const history = storedHistory ? JSON.parse(storedHistory) : {};
+      
+      // Initialize user's history if not exists
+      if (!history[userId]) {
+        history[userId] = [];
+      }
+      
+      // Add new entry
+      history[userId].push({
         ...codeData,
-        timestamp: serverTimestamp(),
+        timestamp,
       });
+      
+      // Save back to localStorage
+      localStorage.setItem('codeHistory', JSON.stringify(history));
       return true;
     } catch (error) {
       console.error("Error saving code history:", error);
