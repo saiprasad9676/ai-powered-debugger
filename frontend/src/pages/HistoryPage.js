@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../styles.css';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 const HistoryPage = () => {
   const { currentUser, userProfile } = useAuth();
   const navigate = useNavigate();
@@ -17,121 +19,94 @@ const HistoryPage = () => {
       return;
     }
 
-    const fetchHistory = () => {
+    const fetchHistory = async () => {
       try {
-        // Get history from localStorage
-        const storedHistory = localStorage.getItem('codeHistory');
-        if (storedHistory) {
-          const allHistory = JSON.parse(storedHistory);
-          const userHistory = allHistory[currentUser.uid] || [];
-          
-          // Sort by timestamp descending
-          const sortedHistory = userHistory.sort((a, b) => {
-            return new Date(b.timestamp) - new Date(a.timestamp);
-          });
-          
-          // Add IDs to each history item if they don't have one
-          const historyWithIds = sortedHistory.map((item, index) => ({
-            id: item.id || `history-${index}`,
-            ...item,
-            timestamp: new Date(item.timestamp)
-          }));
-          
-          setHistory(historyWithIds.slice(0, 20)); // Limit to 20 entries like before
-        } else {
-          setHistory([]);
+        setLoading(true);
+        // Get the list of history entries from MongoDB
+        const response = await fetch(`${API_URL}/api/users/${userProfile._id}/history`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
+        const data = await response.json();
+        
+        // Format the timestamps and set state
+        const formattedHistory = data.map(item => ({
+          ...item,
+          timestamp: new Date(item.timestamp).toLocaleString()
+        }));
+        
+        setHistory(formattedHistory);
+        setError('');
       } catch (err) {
         console.error('Error fetching history:', err);
-        setError('Failed to load your coding history');
+        setError('Failed to load history. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchHistory();
-  }, [currentUser, navigate]);
-
-  const handleItemClick = (item) => {
-    // Navigate to the app with the selected code
-    navigate('/app', { state: { code: item.code, language: item.language } });
-  };
+    if (userProfile && userProfile._id) {
+      fetchHistory();
+    }
+  }, [currentUser, navigate, userProfile]);
 
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading your history...</p>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Code History</h1>
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Code History</h1>
+        <div className="error-message">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="app-container">
-      <header>
-        <div className="container">
-          <h1 className="app-title">Your Coding History</h1>
-          <p className="app-subtitle">
-            Previous debugging sessions and code snippets
-          </p>
-        </div>
-      </header>
-
-      <main className="main-content">
-        <div className="container">
-          <div className="card">
-            <div className="toolbar">
-              <button onClick={() => navigate('/app')} className="back-button">
-                Back to Debugger
-              </button>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6">Code History</h1>
+      
+      {history.length === 0 ? (
+        <p className="text-gray-500">No history found. Start debugging some code to build your history!</p>
+      ) : (
+        <div className="grid gap-6">
+          {history.map((item, index) => (
+            <div key={index} className="border rounded-lg p-4 bg-gray-800 shadow-md">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="text-xl font-semibold">{item.language || 'Unknown language'}</h3>
+                <span className="text-sm text-gray-400">{item.timestamp}</span>
+              </div>
+              <div className="mb-4">
+                <h4 className="text-md font-medium mb-1">Original Code:</h4>
+                <pre className="bg-gray-900 p-3 rounded overflow-x-auto">{item.originalCode}</pre>
+              </div>
+              {item.fixedCode && (
+                <div className="mb-4">
+                  <h4 className="text-md font-medium mb-1">Fixed Code:</h4>
+                  <pre className="bg-gray-900 p-3 rounded overflow-x-auto">{item.fixedCode}</pre>
+                </div>
+              )}
+              {item.errorMessage && (
+                <div className="mb-2">
+                  <h4 className="text-md font-medium mb-1">Error:</h4>
+                  <p className="text-red-400">{item.errorMessage}</p>
+                </div>
+              )}
             </div>
-
-            {error && <div className="error-message">{error}</div>}
-
-            {history.length === 0 ? (
-              <div className="empty-state">
-                <h2>No History Yet</h2>
-                <p>Your debugging sessions will appear here once you start using the app.</p>
-              </div>
-            ) : (
-              <div className="history-list">
-                {history.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="history-item"
-                    onClick={() => handleItemClick(item)}
-                  >
-                    <div className="history-header">
-                      <span className="history-language">{item.language}</span>
-                      <span className="history-date">
-                        {item.timestamp.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="history-code-preview">
-                      <pre>{item.code.substring(0, 150)}...</pre>
-                    </div>
-                    <div className="history-status">
-                      {item.hadErrors ? (
-                        <span className="status-error">Had Errors</span>
-                      ) : (
-                        <span className="status-success">No Errors</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
         </div>
-      </main>
-
-      <footer>
-        <div className="container">
-          <p>&copy; {new Date().getFullYear()} AI-Powered Code Debugger</p>
-        </div>
-      </footer>
+      )}
     </div>
   );
 };
 
+export default HistoryPage; 
 export default HistoryPage; 

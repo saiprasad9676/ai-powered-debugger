@@ -9,6 +9,8 @@ import {
   getRedirectResult 
 } from "firebase/auth";
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
@@ -27,139 +29,168 @@ export const AuthProvider = ({ children }) => {
           console.log("Redirect sign-in successful:", result.user);
         }
       } catch (error) {
-        console.error("Error with redirect sign-in:", error);
+        console.error("Error handling redirect result:", error);
       }
     };
 
     handleRedirectResult();
   }, []);
 
-  // Load profile from localStorage when user logs in
-  const loadProfileFromStorage = (userId) => {
+  // Create or update user in MongoDB when Firebase auth state changes
+  const syncUserWithMongoDB = async (user) => {
+    if (!user) return null;
+    
     try {
-      const storedProfiles = localStorage.getItem('userProfiles');
-      if (storedProfiles) {
-        const profiles = JSON.parse(storedProfiles);
-        return profiles[userId] || null;
+      const response = await fetch(`${API_URL}/api/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          display_name: user.displayName || user.email.split('@')[0],
+          photo_url: user.photoURL || null
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP Error! Status: ${response.status}`);
       }
+      
+      const userData = await response.json();
+      return userData;
     } catch (error) {
-      console.error("Error loading profile from localStorage:", error);
+      console.error("Error syncing user with MongoDB:", error);
+      return null;
     }
-    return null;
   };
 
-  // Listen for authentication state changes
+  // Fetch user profile from MongoDB
+  const fetchUserProfile = async (userId) => {
+    if (!userId) return null;
+    
+    try {
+      const response = await fetch(`${API_URL}/api/users/${userId}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP Error! Status: ${response.status}`);
+      }
+      
+      const profileData = await response.json();
+      return profileData;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
+  };
+
+  // Monitor authentication state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      
       if (user) {
-        console.log("Auth state changed - user is logged in:", user.uid);
-        // Get user profile from localStorage
-        const profile = loadProfileFromStorage(user.uid);
-        setUserProfile(profile);
+        // Sync user with MongoDB and get profile
+        const dbUser = await syncUserWithMongoDB(user);
+        if (dbUser) {
+          const userProfile = await fetchUserProfile(dbUser._id);
+          setUserProfile(userProfile);
+        }
       } else {
-        console.log("Auth state changed - no user is logged in");
         setUserProfile(null);
       }
+      
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  // Sign in with Google
+  // Google sign-in handler
   const googleSignIn = async () => {
     try {
       const user = await signInWithGoogle();
       return user;
     } catch (error) {
-      console.error("Error signing in with Google:", error);
+      console.error("Error in googleSignIn:", error);
       throw error;
     }
   };
 
-  // Sign out
-  const signOutUser = async () => {
-    try {
-      await logOut();
-      return true;
-    } catch (error) {
-      console.error("Error signing out:", error);
-      return false;
-    }
-  };
-
-  // Create or update user profile in localStorage
+  // Update user profile (name, preferences, etc.)
   const updateUserProfile = async (profileData) => {
     if (!currentUser) {
-      console.error("Cannot update profile: No user is logged in");
-      return false;
+      throw new Error("No authenticated user");
     }
-
+    
     try {
-      const userId = currentUser.uid;
-      console.log("Updating profile for user:", userId);
-      console.log("Profile data:", profileData);
+      // Get the MongoDB user first
+      const dbUser = await syncUserWithMongoDB(currentUser);
+      if (!dbUser) {
+        console.error("Failed to get MongoDB user");
+        throw new Error("Failed to get user reference");
+      }
       
-      // Get existing profiles or initialize empty object
-      const storedProfiles = localStorage.getItem('userProfiles');
-      const profiles = storedProfiles ? JSON.parse(storedProfiles) : {};
-      
-      // Update profile for current user
-      profiles[userId] = {
-        ...profileData,
-        email: currentUser.email,
-        lastUpdated: new Date().toISOString(),
-      };
-      
-      // Save back to localStorage
-      localStorage.setItem('userProfiles', JSON.stringify(profiles));
-      console.log("Profile saved to localStorage");
-      
-      // Update state
-      setUserProfile({
-        ...profileData,
-        email: currentUser.email,
+      // Update profile in MongoDB
+      const response = await fetch(`${API_URL}/api/users/${dbUser._id}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData),
       });
       
-      console.log("Profile updated successfully in state");
-      return true;
+      if (!response.ok) {
+        throw new Error(`HTTP Error! Status: ${response.status}`);
+      }
+      
+      const updatedProfile = await response.json();
+      setUserProfile(updatedProfile);
+      console.log("Profile updated successfully in MongoDB");
+      
+      return updatedProfile;
     } catch (error) {
       console.error("Error updating profile:", error);
-      console.error("Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-      return false;
+      throw error;
     }
   };
 
-  // Save coding history to localStorage
-  const saveCodeHistory = async (codeData) => {
-    if (!currentUser) return false;
-
+  // Save coding history to MongoDB
+  const saveCodeHistory = async (historyData) => {
+    if (!currentUser) {
+      console.error("Cannot save history: No authenticated user");
+      return null;
+    }
+    
     try {
-      const userId = currentUser.uid;
-      const timestamp = new Date().toISOString();
-      
-      // Get existing history or initialize empty object
-      const storedHistory = localStorage.getItem('codeHistory');
-      const history = storedHistory ? JSON.parse(storedHistory) : {};
-      
-      // Initialize user's history if not exists
-      if (!history[userId]) {
-        history[userId] = [];
+      // Get the MongoDB user first
+      const dbUser = await syncUserWithMongoDB(currentUser);
+      if (!dbUser) {
+        console.error("Failed to get MongoDB user");
+        return null;
       }
       
-      // Add new entry
-      history[userId].push({
-        ...codeData,
-        timestamp,
+      // Save history to MongoDB
+      const response = await fetch(`${API_URL}/api/users/${dbUser._id}/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...historyData,
+          timestamp: new Date().toISOString()
+        }),
       });
       
-      // Save back to localStorage
-      localStorage.setItem('codeHistory', JSON.stringify(history));
-      return true;
+      if (!response.ok) {
+        throw new Error(`HTTP Error! Status: ${response.status}`);
+      }
+      
+      const savedHistory = await response.json();
+      return savedHistory;
     } catch (error) {
       console.error("Error saving code history:", error);
-      return false;
+      return null;
     }
   };
 
@@ -168,7 +199,7 @@ export const AuthProvider = ({ children }) => {
     userProfile,
     loading,
     googleSignIn,
-    signOutUser,
+    logOut,
     updateUserProfile,
     saveCodeHistory
   };

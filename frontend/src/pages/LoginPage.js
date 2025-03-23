@@ -13,48 +13,52 @@ const LoginPage = () => {
   const [popupFailed, setPopupFailed] = useState(false);
 
   useEffect(() => {
-    // If user is already logged in, redirect to profile setup or dashboard
+    // If user is logged in, redirect to app
     if (currentUser) {
-      console.log("User already logged in, redirecting...");
-      if (!currentUser.displayName) {
-        navigate('/profile-setup');
-      } else {
-        navigate('/app');
-      }
+      navigate('/app');
     }
   }, [currentUser, navigate]);
 
   const handleGoogleSignIn = async () => {
+    if (loading) return;
+    
     try {
       setError('');
       setLoading(true);
-      console.log("Handling Google sign-in click...");
       
       if (popupFailed) {
-        // If popup failed before, use redirect method
-        console.log("Using redirect method for sign-in...");
+        // If popup failed before, try redirect method
         const provider = new GoogleAuthProvider();
         provider.addScope('profile');
         provider.addScope('email');
         provider.setCustomParameters({
-          prompt: 'select_account',
-          client_id: '432873761264-8camv1a97cpeiq1gglih2j2klq2p97m1.apps.googleusercontent.com'
+          prompt: 'select_account'
         });
         await signInWithRedirect(auth, provider);
-        return; // This will redirect, so no need to continue
+        return;
       }
       
-      // Try popup method first
+      // Try popup first
       await googleSignIn();
-      // Navigation happens in the useEffect above
+      // Navigate will happen in the useEffect above when currentUser changes
     } catch (error) {
-      console.error('Failed to sign in with Google', error);
-      setError(`Failed to sign in: ${error.message || 'Unknown error'}`);
+      console.error('Google sign-in error:', error);
       
-      // If popup was blocked or other error, suggest using redirect next time
-      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+      let errorMessage = 'Failed to sign in with Google.';
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign-in canceled. You closed the popup.';
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Popup was blocked. Trying redirect method...';
         setPopupFailed(true);
+        // Try redirect on next click
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        errorMessage = 'Multiple popups were detected. Please try again.';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection and try again.';
       }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -63,63 +67,26 @@ const LoginPage = () => {
   return (
     <div className="login-container">
       <div className="login-card">
-        <div className="login-logo">
-          <img src="/logo.svg" alt="AI Code Debugger" className="logo-image" />
+        <div className="logo-container">
+          <img src="/logo.svg" alt="AI Code Debugger Logo" className="app-logo" />
         </div>
-        <h1 className="login-title">AI-Powered Code Debugger</h1>
-        <p className="login-subtitle">Debug and enhance your code with AI</p>
+        <h1 className="app-title">AI Code Debugger</h1>
+        <p className="app-subtitle">Debug your code with the power of AI</p>
         
         {error && <div className="error-message">{error}</div>}
         
-        <div className="login-features">
-          <div className="feature">
-            <div className="feature-icon">⚡</div>
-            <div className="feature-text">
-              <h3>Instant Debugging</h3>
-              <p>Get immediate feedback on code errors</p>
-            </div>
-          </div>
-          <div className="feature">
-            <div className="feature-icon">🔍</div>
-            <div className="feature-text">
-              <h3>Smart Suggestions</h3>
-              <p>Receive AI-powered code improvement tips</p>
-            </div>
-          </div>
-          <div className="feature">
-            <div className="feature-icon">🌐</div>
-            <div className="feature-text">
-              <h3>Multiple Languages</h3>
-              <p>Support for Python, JavaScript, Java, C and C++</p>
-            </div>
-          </div>
-        </div>
-        
         <button 
-          className="google-signin-button" 
-          onClick={handleGoogleSignIn}
-          type="button"
+          onClick={handleGoogleSignIn} 
+          className="google-signin-button"
           disabled={loading}
         >
-          {loading ? (
-            "Signing in..."
-          ) : popupFailed ? (
-            "Sign in with Google (Redirect)"
-          ) : (
-            <>
-              <img 
-                src="https://developers.google.com/identity/images/g-logo.png" 
-                alt="Google" 
-                className="google-icon" 
-              />
-              Sign in with Google
-            </>
-          )}
+          <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google logo" />
+          {loading ? 'Signing in...' : popupFailed ? 'Continue with Google' : 'Sign in with Google'}
         </button>
         
-        {popupFailed && (
-          <p className="helper-text">Pop-up was blocked. Click again to use redirect method.</p>
-        )}
+        <p className="login-info">
+          By signing in, you agree to our Terms of Service and Privacy Policy.
+        </p>
       </div>
     </div>
   );
