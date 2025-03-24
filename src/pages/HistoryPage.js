@@ -2,116 +2,103 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-// Define API URL
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-
 const HistoryPage = () => {
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  // Fetch history from MongoDB
-  const fetchHistory = async () => {
-    if (!currentUser) return;
-    
-    try {
-      setLoading(true);
-      
-      const response = await fetch(`${API_URL}/api/users/${currentUser.uid}/history`);
-      
-      if (response.ok) {
-        const historyData = await response.json();
-        
-        // Format timestamps for display
-        const formattedHistory = historyData.map(item => ({
-          ...item,
-          timestamp: new Date(item.timestamp).toLocaleString(),
-          // Map backend field names to frontend expected names if necessary
-          id: item._id || item.id,
-          originalCode: item.original_code,
-          fixedCode: item.fixed_code,
-          errorMessage: item.error_message,
-          language: item.language
-        }));
-        
-        setHistory(formattedHistory);
-        setError('');
-      } else {
-        throw new Error('Failed to fetch history');
-      }
-    } catch (err) {
-      console.error('Error fetching history:', err);
-      setError('Failed to load history. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    // If user is not logged in, redirect to login
-    if (!currentUser) {
-      navigate('/login');
-      return;
+    const fetchHistory = async () => {
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/history/${currentUser.uid}?limit=5`);
+        if (response.ok) {
+          const data = await response.json();
+          setHistory(data);
+        }
+      } catch (error) {
+        console.error('Error fetching history:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (currentUser) {
+      fetchHistory();
     }
-
-    // Fetch history from MongoDB
-    fetchHistory();
-  }, [currentUser, navigate, fetchHistory]);
-
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Code History</h1>
-        <div className="loading-spinner">Loading...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Code History</h1>
-        <div className="error-message">{error}</div>
-      </div>
-    );
-  }
+  }, [currentUser]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Code History</h1>
-      
-      {history.length === 0 ? (
-        <p className="text-gray-500">No history found. Start debugging some code to build your history!</p>
-      ) : (
-        <div className="grid gap-6">
-          {history.map((item, index) => (
-            <div key={item.id || index} className="border rounded-lg p-4 bg-gray-800 shadow-md">
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-xl font-semibold">{item.language || 'Unknown language'}</h3>
-                <span className="text-sm text-gray-400">{item.timestamp}</span>
-              </div>
-              <div className="mb-4">
-                <h4 className="text-md font-medium mb-1">Original Code:</h4>
-                <pre className="bg-gray-900 p-3 rounded overflow-x-auto">{item.originalCode}</pre>
-              </div>
-              {item.fixedCode && (
-                <div className="mb-4">
-                  <h4 className="text-md font-medium mb-1">Fixed Code:</h4>
-                  <pre className="bg-gray-900 p-3 rounded overflow-x-auto">{item.fixedCode}</pre>
-                </div>
-              )}
-              {item.errorMessage && (
-                <div className="mb-2">
-                  <h4 className="text-md font-medium mb-1">Error:</h4>
-                  <p className="text-red-400">{item.errorMessage}</p>
-                </div>
-              )}
-            </div>
-          ))}
+    <div className="min-h-screen bg-[#1E1E1E] text-white">
+      <nav className="bg-[#2D2D2D] p-4">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <h1 className="text-xl font-bold">Debug History</h1>
+          <button
+            onClick={() => navigate('/debug')}
+            className="px-4 py-2 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA]"
+          >
+            Back to Debug
+          </button>
         </div>
-      )}
+      </nav>
+
+      <div className="max-w-6xl mx-auto p-4">
+        <div className="bg-[#2D2D2D] rounded-lg p-6">
+          <h2 className="text-2xl font-bold mb-6">Recent Debug Sessions</h2>
+          
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="text-gray-400">Loading history...</div>
+            </div>
+          ) : history.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-gray-400">No debug history found</div>
+              <button
+                onClick={() => navigate('/debug')}
+                className="mt-4 px-6 py-2 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA]"
+              >
+                Start Debugging
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {history.map((item, index) => (
+                <div key={index} className="bg-[#1E1E1E] rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <span className="text-sm text-gray-400">
+                        {new Date(item.timestamp).toLocaleString()}
+                      </span>
+                      <div className="text-lg font-semibold mt-1">
+                        {item.language.charAt(0).toUpperCase() + item.language.slice(1)} Code Debug
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-[#4F46E5] rounded-full text-sm">
+                      {item.language}
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-400 mb-2">Original Code</h3>
+                      <pre className="bg-[#2D2D2D] p-3 rounded overflow-x-auto">
+                        <code>{item.originalCode}</code>
+                      </pre>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-400 mb-2">Debug Output</h3>
+                      <pre className="bg-[#2D2D2D] p-3 rounded overflow-x-auto">
+                        <code>{item.output}</code>
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

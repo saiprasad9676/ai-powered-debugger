@@ -27,13 +27,11 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function App() {
-  const { currentUser } = useAuth();
-
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/" element={currentUser ? <Navigate to="/debug" /> : <LandingPage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
           <Route path="/debug" element={<ProtectedRoute><DebugPage /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
