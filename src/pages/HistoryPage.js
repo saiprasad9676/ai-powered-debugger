@@ -1,103 +1,157 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import '../styles/HistoryPage.css';
 
 const HistoryPage = () => {
-  const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const API_URL = process.env.REACT_APP_API_BASE_URL || 'https://ai-debugger-backend.onrender.com';
 
   useEffect(() => {
+    if (!currentUser) {
+      navigate('/');
+      return;
+    }
+
     const fetchHistory = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/history/${currentUser.uid}?limit=5`);
-        if (response.ok) {
-          const data = await response.json();
-          setHistory(data);
-        }
-      } catch (error) {
-        console.error('Error fetching history:', error);
+        setLoading(true);
+        console.log('Fetching history from:', `${API_URL}/api/history/${currentUser.email}`);
+        const response = await axios.get(`${API_URL}/api/history/${currentUser.email}`);
+        setHistory(response.data);
+      } catch (err) {
+        console.error('Error fetching history:', err);
+        setError('Failed to load history. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
-    if (currentUser) {
-      fetchHistory();
+    fetchHistory();
+  }, [currentUser, navigate, API_URL]);
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getLanguageIcon = (language) => {
+    switch (language.toLowerCase()) {
+      case 'python':
+        return '🐍';
+      case 'javascript':
+        return 'JS';
+      case 'java':
+        return '☕';
+      case 'cpp':
+        return 'C++';
+      case 'c':
+        return 'C';
+      default:
+        return '📄';
     }
-  }, [currentUser]);
+  };
+
+  const handleItemClick = (item) => {
+    setSelectedItem(item === selectedItem ? null : item);
+  };
+
+  const handleDebugClick = () => {
+    navigate('/debug');
+  };
+
+  const handleHomeClick = () => {
+    navigate('/app');
+  };
+
+  if (loading) {
+    return <div className="loading-container">Loading history...</div>;
+  }
 
   return (
-    <div className="min-h-screen bg-[#1E1E1E] text-white">
-      <nav className="bg-[#2D2D2D] p-4">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold">Debug History</h1>
-          <button
-            onClick={() => navigate('/debug')}
-            className="px-4 py-2 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA]"
-          >
-            Back to Debug
-          </button>
+    <div className="history-container">
+      <header className="history-header">
+        <h1>Debugging History</h1>
+        <div className="header-buttons">
+          <button className="home-btn" onClick={handleHomeClick}>Home</button>
+          <button className="debug-btn" onClick={handleDebugClick}>Debug Code</button>
         </div>
-      </nav>
+      </header>
 
-      <div className="max-w-6xl mx-auto p-4">
-        <div className="bg-[#2D2D2D] rounded-lg p-6">
-          <h2 className="text-2xl font-bold mb-6">Recent Debug Sessions</h2>
-          
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="text-gray-400">Loading history...</div>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-gray-400">No debug history found</div>
-              <button
-                onClick={() => navigate('/debug')}
-                className="mt-4 px-6 py-2 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA]"
+      <div className="history-content">
+        {error && <div className="error-message">{error}</div>}
+
+        {history.length === 0 ? (
+          <div className="no-history">
+            <p>No debugging history found. Start debugging your code to see your history.</p>
+            <button className="start-debugging-btn" onClick={handleDebugClick}>Start Debugging</button>
+          </div>
+        ) : (
+          <div className="history-list">
+            {history.map((item) => (
+              <div 
+                key={item._id} 
+                className={`history-item ${selectedItem === item ? 'active' : ''}`}
+                onClick={() => handleItemClick(item)}
               >
-                Start Debugging
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {history.map((item, index) => (
-                <div key={index} className="bg-[#1E1E1E] rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <span className="text-sm text-gray-400">
-                        {new Date(item.timestamp).toLocaleString()}
-                      </span>
-                      <div className="text-lg font-semibold mt-1">
-                        {item.language.charAt(0).toUpperCase() + item.language.slice(1)} Code Debug
-                      </div>
-                    </div>
-                    <span className="px-3 py-1 bg-[#4F46E5] rounded-full text-sm">
-                      {item.language}
-                    </span>
+                <div className="history-item-header">
+                  <div className="language-badge">
+                    <span className="language-icon">{getLanguageIcon(item.language)}</span>
+                    <span>{item.language}</span>
                   </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-400 mb-2">Original Code</h3>
-                      <pre className="bg-[#2D2D2D] p-3 rounded overflow-x-auto">
-                        <code>{item.originalCode}</code>
-                      </pre>
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-400 mb-2">Debug Output</h3>
-                      <pre className="bg-[#2D2D2D] p-3 rounded overflow-x-auto">
-                        <code>{item.output}</code>
-                      </pre>
-                    </div>
-                  </div>
+                  <span className="timestamp">{formatDate(item.timestamp)}</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                <div className="code-preview">
+                  <pre>{item.code.length > 100 ? `${item.code.slice(0, 100)}...` : item.code}</pre>
+                </div>
+
+                {selectedItem === item && (
+                  <div className="history-details">
+                    <div className="details-section">
+                      <h3>Original Code</h3>
+                      <pre>{item.code}</pre>
+                    </div>
+                    
+                    {item.output && (
+                      <div className="details-section">
+                        <h3>Output</h3>
+                        <pre>{item.output}</pre>
+                      </div>
+                    )}
+                    
+                    {item.changes && (
+                      <div className="details-section">
+                        <h3>Changes Made</h3>
+                        <pre>{item.changes}</pre>
+                      </div>
+                    )}
+                    
+                    {item.suggestions && (
+                      <div className="details-section">
+                        <h3>Suggestions</h3>
+                        <pre>{item.suggestions}</pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

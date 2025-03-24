@@ -6,6 +6,7 @@ import {
   signInWithPopup,
   signOut 
 } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 // Firebase configuration using environment variables
 const firebaseConfig = {
@@ -19,7 +20,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Get Auth and Firestore instances
 export const auth = getAuth(app);
+export const db = getFirestore(app);
+
 export default app;
 
 // Configure Google Provider

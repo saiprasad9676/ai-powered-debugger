@@ -1,59 +1,99 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getUserProfile } from '../utils/mongodb';
+import '../styles/HomePage.css';
 
 const HomePage = () => {
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
-  const { currentUser, logOut } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!currentUser?.email) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const userProfile = await getUserProfile(currentUser.email);
+        setProfile(userProfile);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        if (error.message === 'User not found') {
+          // If profile doesn't exist, redirect to profile setup
+          navigate('/profile-setup');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [currentUser, navigate]);
 
   const handleLogout = async () => {
     try {
-      await logOut();
+      await logout();
       navigate('/');
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error('Logout error:', error);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#1E1E1E] text-white p-4">
-      <nav className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Welcome, {currentUser?.displayName}</h1>
-        <div className="flex space-x-4">
-          <button
-            onClick={() => navigate('/debug')}
-            className="px-4 py-2 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA]"
-          >
-            Debug Code
-          </button>
-          <button
-            onClick={() => navigate('/history')}
-            className="px-4 py-2 bg-[#2D2D2D] rounded-lg hover:bg-[#3D3D3D]"
-          >
-            History
-          </button>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700"
-          >
-            Logout
-          </button>
-        </div>
-      </nav>
+  const handleDebug = () => {
+    navigate('/debug');
+  };
 
-      <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-4xl font-bold mb-8">AI-Powered Code Debugger</h2>
-        <p className="text-xl text-gray-300 mb-12">
-          Debug your code instantly with the power of AI. Get intelligent suggestions,
-          fix errors automatically, and improve your code quality in seconds.
-        </p>
-        <button
-          onClick={() => navigate('/debug')}
-          className="px-8 py-4 bg-[#4F46E5] rounded-lg text-xl hover:bg-[#4338CA] transition-colors"
-        >
-          Start Debugging
-        </button>
-      </div>
+  const handleHistory = () => {
+    navigate('/history');
+  };
+
+  if (loading) {
+    return <div className="loading-container">Loading...</div>;
+  }
+
+  return (
+    <div className="home-container">
+      <header className="home-header">
+        <h1>AI-Powered Debugger</h1>
+        <div className="user-info">
+          {profile && (
+            <span>Welcome, {profile.firstName} {profile.lastName}</span>
+          )}
+          <button className="logout-btn" onClick={handleLogout}>Logout</button>
+        </div>
+      </header>
+
+      <main className="home-content">
+        <div className="welcome-section">
+          <h2>Welcome to Your AI Debugging Assistant</h2>
+          <p>
+            Get help with your code through our advanced AI-powered debugging tools. 
+            Fix errors, improve your code, and enhance your programming skills.
+          </p>
+        </div>
+
+        <div className="features-grid">
+          <div className="feature-card" onClick={handleDebug}>
+            <div className="feature-icon">🔍</div>
+            <h3>Debug Code</h3>
+            <p>Fix errors and get detailed explanations for your code</p>
+          </div>
+          
+          <div className="feature-card" onClick={handleHistory}>
+            <div className="feature-icon">📝</div>
+            <h3>View History</h3>
+            <p>Access your previous debugging sessions</p>
+          </div>
+        </div>
+      </main>
+
+      <footer className="home-footer">
+        <p>&copy; 2023 AI-Powered Debugger. All rights reserved.</p>
+      </footer>
     </div>
   );
 };

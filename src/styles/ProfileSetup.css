@@ -1,0 +1,97 @@
+.profile-setup-container {
+  min-height: 100vh;
+  background-color: #1E1E1E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.profile-setup-card {
+  background-color: #2D2D2D;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.profile-setup-card h2 {
+  color: white;
+  font-size: 1.875rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+}
+
+.error-message {
+  background-color: rgba(220, 38, 38, 0.1);
+  border: 1px solid #DC2626;
+  color: #DC2626;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #DC2626;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  color: #D1D5DB;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: #1E1E1E;
+  border: 1px solid #4B5563;
+  border-radius: 0.375rem;
+  color: white;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #4F46E5;
+}
+
+.form-group input::placeholder {
+  color: #6B7280;
+}
+
+.submit-button {
+  width: 100%;
+  padding: 0.875rem;
+  background-color: #4F46E5;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: #4338CA;
+}
+
+.submit-button:disabled {
+  background-color: #6B7280;
+  cursor: not-allowed;
+} 

@@ -1,240 +1,280 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import '../styles/DebugPage.css';
 
 const languages = [
   { id: 'python', label: 'Python', icon: '🐍' },
   { id: 'javascript', label: 'JavaScript', icon: 'JS' },
   { id: 'java', label: 'Java', icon: '☕' },
-  { id: 'cpp', label: 'C++', icon: '⚙️' },
-  { id: 'c', label: 'C', icon: '🔧' }
+  { id: 'cpp', label: 'C++', icon: 'C++' },
+  { id: 'csharp', label: 'C#', icon: 'C#' }
 ];
 
 const DebugPage = () => {
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const { currentUser, logOut, saveCodeHistory } = useAuth();
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState('python');
   const [output, setOutput] = useState('');
   const [changes, setChanges] = useState('');
   const [suggestions, setSuggestions] = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [debugging, setDebugging] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogout = async () => {
-    try {
-      await logOut();
+  const API_URL = process.env.REACT_APP_API_BASE_URL || 'https://ai-debugger-backend.onrender.com';
+
+  useEffect(() => {
+    if (!currentUser) {
       navigate('/');
-    } catch (error) {
-      console.error('Error logging out:', error);
     }
+  }, [currentUser, navigate]);
+
+  const handleCodeChange = (e) => {
+    setCode(e.target.value);
   };
 
-  const verifyCode = async () => {
-    if (!code.trim()) return;
-    
-    setVerifying(true);
-    try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer AIzaSyDwPU8OSBkuGt9wrSeBVLG8tE0NjkLxeCk`
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Verify this ${language} code and provide a detailed analysis with the following format:
-              1. List all syntax errors and potential bugs
-              2. Suggest improvements for better code quality
-              3. Explain any potential performance issues
-              
-              Code:
-              ${code}`
-            }]
-          }]
-        })
-      });
-
-      const data = await response.json();
-      const result = data.candidates[0].content.parts[0].text;
-      
-      // Split the response into sections
-      const sections = result.split('\n\n');
-      setChanges(sections[0] || 'No issues found.');
-      setSuggestions(sections.slice(1).join('\n\n') || 'No suggestions available.');
-    } catch (error) {
-      console.error('Error verifying code:', error);
-      setChanges('Error: Failed to verify code. Please try again.');
-    } finally {
-      setVerifying(false);
-    }
+  const handleLanguageChange = (selectedLanguage) => {
+    setLanguage(selectedLanguage);
   };
 
-  const debugAndRun = async () => {
-    if (!code.trim()) return;
-    
-    setDebugging(true);
+  const handleVerifyCode = async () => {
+    if (!code.trim()) {
+      setError('Please enter code to verify');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setChanges('');
+    setSuggestions('');
+    setOutput('');
+
     try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer AIzaSyDwPU8OSBkuGt9wrSeBVLG8tE0NjkLxeCk`
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Debug and run this ${language} code. Show the output and explain any errors:
-              ${code}`
-            }]
-          }]
-        })
-      });
-
-      const data = await response.json();
-      const result = data.candidates[0].content.parts[0].text;
-      setOutput(result);
-
-      // Save to history
-      await saveCodeHistory({
+      console.log('Sending verification request to:', `${API_URL}/api/verify`);
+      const response = await axios.post(`${API_URL}/api/verify`, {
+        code,
         language,
-        originalCode: code,
-        output: result,
+        userId: currentUser.email
+      });
+
+      console.log('Verification response:', response.data);
+      setChanges(response.data.changes || 'No issues found in your code.');
+      setSuggestions(response.data.suggestions || 'No suggestions available.');
+    } catch (err) {
+      console.error('Verification error:', err);
+      setError('Failed to verify code. Please try again. ' + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDebugRun = async () => {
+    if (!code.trim()) {
+      setError('Please enter code to debug and run');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setChanges('');
+    setSuggestions('');
+    setOutput('');
+
+    try {
+      console.log('Sending debug request to:', `${API_URL}/api/debug`);
+      const response = await axios.post(`${API_URL}/api/debug`, {
+        code,
+        language,
+        userId: currentUser.email
+      });
+
+      console.log('Debug response:', response.data);
+      setOutput(response.data.output || 'No output generated.');
+      setChanges(response.data.changes || 'No issues found in your code.');
+      setSuggestions(response.data.suggestions || 'No suggestions available.');
+      
+      // Save to history
+      await axios.post(`${API_URL}/api/history`, {
+        userId: currentUser.email,
+        code,
+        language,
+        output: response.data.output,
+        changes: response.data.changes,
+        suggestions: response.data.suggestions,
         timestamp: new Date().toISOString()
       });
-    } catch (error) {
-      console.error('Error debugging code:', error);
-      setOutput('Error: Failed to debug and run code. Please try again.');
+      
+    } catch (err) {
+      console.error('Debug error:', err);
+      setError('Failed to debug and run code. Please try again. ' + (err.response?.data?.message || err.message));
     } finally {
-      setDebugging(false);
+      setLoading(false);
     }
+  };
+
+  const goToHistory = () => {
+    navigate('/history');
+  };
+
+  const handleLogout = () => {
+    navigate('/');
+  };
+
+  // Custom renderer for code blocks in markdown
+  const components = {
+    code({ node, inline, className, children, ...props }) {
+      const match = /language-(\w+)/.exec(className || '');
+      const codeString = String(children).replace(/\n$/, '');
+      
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={match[1]}
+          showLineNumbers={true}
+          wrapLines={true}
+          {...props}
+        >
+          {codeString}
+        </SyntaxHighlighter>
+      ) : (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    }
+  };
+
+  // Pre-process code to display with syntax highlighting in the editor
+  const renderCodeWithSyntaxHighlighting = () => {
+    return (
+      <SyntaxHighlighter
+        language={language}
+        style={vscDarkPlus}
+        showLineNumbers={true}
+        customStyle={{
+          margin: 0,
+          padding: '10px',
+          height: '100%',
+          boxSizing: 'border-box',
+          backgroundColor: 'transparent',
+          fontSize: '14px',
+          fontFamily: 'monospace'
+        }}
+      >
+        {code || ''}
+      </SyntaxHighlighter>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-[#1E1E1E] text-white">
-      {/* Navigation */}
-      <nav className="bg-[#2D2D2D] p-4">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold">AI Code Debugger</h1>
-          <div className="flex space-x-4">
-            <button
-              onClick={() => navigate('/history')}
-              className="px-4 py-2 bg-[#4F46E5] rounded-lg hover:bg-[#4338CA]"
-            >
-              History
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700"
-            >
-              Logout
-            </button>
+    <div className="debug-container">
+      <header className="debug-header">
+        <h1>AI Code Debugger</h1>
+        <div className="header-buttons">
+          <button className="history-btn" onClick={goToHistory}>History</button>
+          <button className="logout-btn" onClick={handleLogout}>Logout</button>
+        </div>
+      </header>
+
+      <div className="language-selector">
+        {languages.map((lang) => (
+          <button 
+            key={lang.id}
+            className={`lang-btn ${language === lang.id ? 'active' : ''}`} 
+            onClick={() => handleLanguageChange(lang.id)}
+          >
+            <span className="lang-icon">{lang.icon}</span> {lang.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="code-editor">
+        <div className="editor-header">
+          <span>Write or paste your code here</span>
+          <div className="editor-buttons">
+            <span className="editor-dot red"></span>
+            <span className="editor-dot yellow"></span>
+            <span className="editor-dot green"></span>
           </div>
         </div>
-      </nav>
-
-      <div className="max-w-6xl mx-auto p-4 space-y-6">
-        {/* Language Selection */}
-        <div className="flex justify-center bg-[#2D2D2D] rounded-lg p-2">
-          {languages.map((lang) => (
-            <button
-              key={lang.id}
-              onClick={() => setLanguage(lang.id)}
-              className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
-                language === lang.id 
-                  ? 'bg-[#4F46E5] text-white' 
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <span className="text-xl">{lang.icon}</span>
-              <span>{lang.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Code Editor */}
-        <div className="bg-[#2D2D2D] rounded-lg overflow-hidden">
-          <div className="px-4 py-2 flex items-center border-b border-gray-600">
-            <span className="text-sm text-gray-400">Write or paste your code here</span>
-            <div className="ml-auto flex space-x-2">
-              <div className="w-3 h-3 rounded-full bg-red-500" />
-              <div className="w-3 h-3 rounded-full bg-yellow-500" />
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-            </div>
-          </div>
-          <textarea
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="w-full h-[300px] bg-[#1E1E1E] p-4 font-mono text-white focus:outline-none"
-            placeholder="Enter your code here..."
+        <div className="editor-container">
+          <textarea 
+            value={code} 
+            onChange={handleCodeChange} 
+            placeholder="Write or paste your code here"
             spellCheck="false"
-          />
+            className="code-textarea"
+          ></textarea>
+          <div className="syntax-highlighter-overlay">
+            {renderCodeWithSyntaxHighlighting()}
+          </div>
         </div>
+      </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end space-x-4">
-          <button
-            onClick={verifyCode}
-            disabled={verifying || !code}
-            className={`px-6 py-2 rounded-lg ${
-              verifying || !code
-                ? 'bg-gray-600 cursor-not-allowed'
-                : 'bg-[#2D2D2D] hover:bg-[#3D3D3D]'
-            }`}
-          >
-            {verifying ? 'Verifying...' : 'Verify Code'}
-          </button>
-          <button
-            onClick={debugAndRun}
-            disabled={debugging || !code}
-            className={`px-6 py-2 rounded-lg ${
-              debugging || !code
-                ? 'bg-gray-600 cursor-not-allowed'
-                : 'bg-[#4F46E5] hover:bg-[#4338CA]'
-            }`}
-          >
-            {debugging ? 'Running...' : 'Debug & Run'}
-          </button>
+      <div className="action-buttons">
+        <button 
+          className="verify-btn" 
+          onClick={handleVerifyCode}
+          disabled={loading}
+        >
+          {loading ? 'Processing...' : 'Verify Code'}
+        </button>
+        <button 
+          className="debug-btn" 
+          onClick={handleDebugRun}
+          disabled={loading}
+        >
+          {loading ? 'Processing...' : 'Debug & Run'}
+        </button>
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+
+      <div className="output-container">
+        <div className="output-section">
+          <h3>📝 Changes Made</h3>
+          <div className="markdown-content">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]} 
+              rehypePlugins={[rehypeRaw]}
+              components={components}
+            >
+              {changes}
+            </ReactMarkdown>
+          </div>
         </div>
-
-        {/* Output Sections */}
-        <div className="grid grid-cols-1 gap-6">
-          {/* Output Window */}
-          {output && (
-            <div className="bg-[#2D2D2D] rounded-lg p-4">
-              <h2 className="text-xl font-bold mb-2 flex items-center">
-                <span className="mr-2">📤</span> Output
-              </h2>
-              <pre className="bg-[#1E1E1E] p-4 rounded font-mono overflow-x-auto whitespace-pre-wrap">
-                {output}
-              </pre>
-            </div>
-          )}
-
-          {/* Changes Made */}
-          {changes && (
-            <div className="bg-[#2D2D2D] rounded-lg p-4">
-              <h2 className="text-xl font-bold mb-2 flex items-center">
-                <span className="mr-2">📝</span> Changes Made
-              </h2>
-              <pre className="bg-[#1E1E1E] p-4 rounded font-mono overflow-x-auto whitespace-pre-wrap">
-                {changes}
-              </pre>
-            </div>
-          )}
-
-          {/* Suggestions */}
-          {suggestions && (
-            <div className="bg-[#2D2D2D] rounded-lg p-4">
-              <h2 className="text-xl font-bold mb-2 flex items-center">
-                <span className="mr-2">💡</span> Suggestions
-              </h2>
-              <pre className="bg-[#1E1E1E] p-4 rounded font-mono overflow-x-auto whitespace-pre-wrap">
-                {suggestions}
-              </pre>
-            </div>
-          )}
+        
+        <div className="output-section">
+          <h3>💡 Suggestions</h3>
+          <div className="markdown-content">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]} 
+              rehypePlugins={[rehypeRaw]}
+              components={components}
+            >
+              {suggestions}
+            </ReactMarkdown>
+          </div>
+        </div>
+        
+        <div className="output-section">
+          <h3>🚀 Output</h3>
+          <div className="markdown-content">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]} 
+              rehypePlugins={[rehypeRaw]}
+              components={components}
+            >
+              {output}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
     </div>

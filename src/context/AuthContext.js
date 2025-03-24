@@ -12,20 +12,46 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const AuthContext = createContext();
 
-export function useAuth() {
+export const useAuth = () => {
   return useContext(AuthContext);
-}
+};
 
-export function AuthProvider({ children }) {
+export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Google sign-in
+  const signInWithGoogle = async () => {
+    try {
+      localStorage.setItem('authLoading', 'true');
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      localStorage.removeItem('authLoading');
+      return result.user;
+    } catch (error) {
+      localStorage.removeItem('authLoading');
+      console.error('Google sign-in error:', error);
+      throw error;
+    }
+  };
+
+  // Logout function
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    }
+  };
+
+  // Monitor auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log("Auth state changed:", user);
       setCurrentUser(user);
       setLoading(false);
+      localStorage.removeItem('authLoading');
     });
 
     return unsubscribe;
@@ -117,26 +143,6 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, [currentUser, syncUserWithMongoDB]);
 
-  async function signInWithGoogle() {
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      return result.user;
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
-      throw error;
-    }
-  }
-
-  async function logOut() {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Error signing out:', error);
-      throw error;
-    }
-  }
-
   // Update user profile in MongoDB
   const updateUserProfile = async (profileData) => {
     if (!currentUser) {
@@ -195,14 +201,16 @@ export function AuthProvider({ children }) {
     userProfile,
     loading,
     signInWithGoogle,
-    logOut,
+    logout,
     updateUserProfile,
     saveCodeHistory
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
-} 
+};
+
+export default AuthContext; 
