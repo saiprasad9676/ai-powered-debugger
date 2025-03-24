@@ -5,18 +5,31 @@ import {
   logOut as firebaseLogOut 
 } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 
 // Define API URL
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user);
+      setCurrentUser(user);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
 
   // Create or update user in MongoDB
   const syncUserWithMongoDB = async (user) => {
@@ -104,16 +117,25 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, [currentUser, syncUserWithMongoDB]);
 
-  // Google sign-in handler
-  const signInWithGoogle = async () => {
+  async function signInWithGoogle() {
+    const provider = new GoogleAuthProvider();
     try {
-      const user = await firebaseSignInWithGoogle();
-      return user;
+      const result = await signInWithPopup(auth, provider);
+      return result.user;
     } catch (error) {
-      console.error("Error in googleSignIn:", error);
+      console.error('Error signing in with Google:', error);
       throw error;
     }
-  };
+  }
+
+  async function logOut() {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
+    }
+  }
 
   // Update user profile in MongoDB
   const updateUserProfile = async (profileData) => {
@@ -144,34 +166,27 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Save coding history to MongoDB
-  const saveCodeHistory = async (historyData) => {
-    if (!currentUser || !userProfile) {
-      console.error("Cannot save history: No authenticated user or profile");
-      return null;
-    }
+  const saveCodeHistory = async (codeData) => {
+    if (!currentUser) return;
     
     try {
-      const response = await fetch(`${API_URL}/api/users/${currentUser.uid}/history`, {
+      const response = await fetch(`${API_URL}/api/history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          language: historyData.language || 'unknown',
-          original_code: historyData.originalCode,
-          fixed_code: historyData.fixedCode,
-          error_message: historyData.errorMessage
+          userId: currentUser.uid,
+          ...codeData
         })
       });
       
-      if (response.ok) {
-        return await response.json();
-      } else {
-        throw new Error('Failed to save history');
+      if (!response.ok) {
+        throw new Error('Failed to save code history');
       }
     } catch (error) {
-      console.error("Error saving code history:", error);
-      return null;
+      console.error('Error saving code history:', error);
+      throw error;
     }
   };
 
@@ -180,7 +195,7 @@ export const AuthProvider = ({ children }) => {
     userProfile,
     loading,
     signInWithGoogle,
-    logOut: firebaseLogOut,
+    logOut,
     updateUserProfile,
     saveCodeHistory
   };
@@ -190,4 +205,4 @@ export const AuthProvider = ({ children }) => {
       {!loading && children}
     </AuthContext.Provider>
   );
-}; 
+} 

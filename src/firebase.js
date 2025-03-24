@@ -3,8 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
-  signInWithPopup, 
-  signInWithRedirect, 
+  signInWithPopup,
   signOut 
 } from 'firebase/auth';
 
@@ -20,7 +19,8 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+export const auth = getAuth(app);
+export default app;
 
 // Configure Google Provider
 const googleProvider = new GoogleAuthProvider();
@@ -50,9 +50,7 @@ const logOut = async () => {
 
 // Export only auth-related functions and objects
 export { 
-  auth, 
   signInWithGoogle, 
   logOut,
-  signInWithRedirect,
   GoogleAuthProvider
 }; 
